@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found — Iron &amp; Interval</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🏋️%3C/text%3E%3C/svg%3E">
+<!-- Self-contained on purpose: a 404 can be served from any depth, so it can't
+     rely on relative asset paths resolving correctly. -->
+<style>
+  :root { --bg:#fff; --text:#16180f; --dim:#5d6154; --accent:#4d7c0f; --soft:#ecfccb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#101210; --text:#eef0ea; --dim:#a3a99b; --accent:#a3e635; --soft:#223016; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    background: radial-gradient(800px 400px at 50% 0%, var(--soft), transparent 70%), var(--bg);
+    color: var(--text); text-align: center; padding: 24px;
+    font: 17px/1.6 ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .eyebrow {
+    display: inline-block; font-size: .78rem; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--accent); background: var(--soft);
+    padding: 5px 11px; border-radius: 999px; margin-bottom: 18px;
+  }
+  @media (prefers-color-scheme: dark) { .eyebrow { color: var(--accent); } }
+  h1 { font-size: clamp(1.9rem, 6vw, 2.8rem); letter-spacing: -.02em; margin: 0 0 .4em; }
+  p { color: var(--dim); max-width: 460px; margin: 0 auto 26px; }
+  a.btn {
+    display: inline-block; padding: 11px 20px; border-radius: 10px;
+    background: var(--accent); color: var(--bg); font-weight: 650; text-decoration: none;
+  }
+  a.btn:hover { filter: brightness(1.08); }
+</style>
+</head>
+<body>
+  <div>
+    <span class="eyebrow">404</span>
+    <h1>That set doesn't exist.</h1>
+    <p>The page you're after has moved, or was never racked in the first place.</p>
+    <a class="btn" id="home" href="/">Back to the articles</a>
+  </div>
+  <script>
+    // On GitHub project pages the site lives at /<repo>/, so "/" is the wrong home.
+    // Keep the first path segment when there is one.
+    (function () {
+      var seg = location.pathname.split('/')[1];
+      if (seg && seg.indexOf('.') === -1) {
+        document.getElementById('home').setAttribute('href', '/' + seg + '/');
+      }
+    })();
+  </script>
+</body>
+</html>
