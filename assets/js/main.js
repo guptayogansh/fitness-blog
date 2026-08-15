@@ -1,4 +1,4 @@
-/* Iron & Interval — site behaviour. No dependencies. */
+/* Prime Routine — site behaviour. No dependencies. */
 (function () {
   'use strict';
 

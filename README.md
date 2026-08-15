@@ -1,4 +1,4 @@
-# Iron & Interval — a fitness blog
+# Prime Routine — a fitness blog
 
 A static fitness blog: plain HTML, CSS and vanilla JS. No build step, no dependencies, no framework.
 Drop it on GitHub Pages and it works.
