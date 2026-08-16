@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <title>Write a post — Prime Routine</title>
 <link rel="stylesheet" href="assets/css/style.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🔒%3C/text%3E%3C/svg%3E">
@@ -294,6 +295,27 @@ A boxed aside.
 <script>
 (function () {
   'use strict';
+
+  /* Bump this whenever admin.html changes. Pages serves this file with
+     max-age=600, and the meta tag above does not really override that, so
+     without a check you can sit in a ten-minute-old editor. */
+  var ADMIN_VERSION = '2026-08-16-a';
+
+  /* Fetch the served copy past the cache; if it is newer than what is
+     running, the cache entry has now been replaced, so a reload picks it up.
+     The sessionStorage note stops this looping if a version ever sticks. */
+  (function checkForUpdate() {
+    fetch('admin.html', { cache: 'reload' })
+      .then(function (r) { return r.text(); })
+      .then(function (text) {
+        var found = text.match(/ADMIN_VERSION = '([^']+)'/);
+        if (!found || found[1] === ADMIN_VERSION) return;
+        if (sessionStorage.getItem('admin-seen') === found[1]) return;
+        sessionStorage.setItem('admin-seen', found[1]);
+        location.reload();
+      })
+      .catch(function () { /* offline, or opened from disk — carry on */ });
+  })();
 
   /* The decrypted GitHub token. Memory only — never localStorage, never a
      cookie, so closing the tab genuinely logs you out. */
