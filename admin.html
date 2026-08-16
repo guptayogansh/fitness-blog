@@ -92,6 +92,26 @@
   .danger[disabled] { opacity: .5; cursor: default; }
   :root[data-theme="dark"] .danger, :root:not([data-theme="light"]) .danger { color: #f87171; }
 
+  /* Shown while GitHub Pages rebuilds, so nobody looks at a stale page and
+     concludes the thing they just did did not work. */
+  .waiting {
+    position: fixed; inset: 0; z-index: 200;
+    display: grid; place-items: center; padding: 24px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(6px);
+  }
+  .waiting-box { text-align: center; max-width: 420px; }
+  .waiting-box h2 { margin: 18px 0 6px; font-size: 1.3rem; }
+  .waiting-line { color: var(--text); font-size: 1rem; min-height: 1.6em; margin: 0 0 14px; }
+  .waiting-meta { color: var(--text-dim); font-size: .85rem; margin: 0 0 18px; }
+  .spinner {
+    width: 42px; height: 42px; margin: 0 auto; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--accent);
+    animation: spin 900ms linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+
   .preview { border: 1px solid var(--border); border-radius: 10px; padding: 4px 20px; background: var(--bg); }
   .preview .prose { padding: 16px 0; }
 
@@ -252,6 +272,17 @@ A boxed aside.
         </div>
       </div>
 
+    </div>
+  </div>
+  <div class="waiting" id="waiting" hidden role="status" aria-live="polite">
+    <div class="waiting-box">
+      <div class="spinner" aria-hidden="true"></div>
+      <h2 id="waiting-title">Publishing…</h2>
+      <p class="waiting-line" id="waiting-line"></p>
+      <p class="waiting-meta">
+        <span id="waiting-secs">0</span>s elapsed · GitHub usually takes about a minute
+      </p>
+      <button class="tag" type="button" id="waiting-skip">Don't wait, let me carry on</button>
     </div>
   </div>
 </main>
@@ -781,7 +812,17 @@ A boxed aside.
       })
       .then(function () {
         say(log, '✓ Deleted. Recover it with git if that was a mistake.', 'ok');
-        return loadPosts();
+        loadPosts();
+
+        if (runningLocally()) {
+          say(log, 'You are running locally, so your own copy still shows it.');
+          say(log, 'Run `git pull` to bring the deletion down to your machine.');
+          return;
+        }
+
+        /* Wait for the card to actually vanish from the served home page,
+           so a stale grid never reads as a failed delete. */
+        return waitForPages(function () { return cardIsGone(slug); }, 'Removing the article…');
       })
       .catch(function (err) {
         say(log, '✗ ' + err.message, 'bad');
@@ -791,36 +832,103 @@ A boxed aside.
 
   /* ---------- after publishing ---------- */
 
-  /* The commit lands instantly but Pages needs a rebuild, so jumping to the
-     home page right away would show a stale copy without the new card.
-     Poll for the post until it is actually being served, then go. */
-  function waitForDeploy(url, onWait) {
+  /* The commit lands instantly but Pages needs a rebuild, so acting on the
+     live site right away would show a stale copy. Hold the user behind an
+     overlay until the change is genuinely being served. */
+  var QUIRKS = [
+    'Racking the weights…',
+    'Chalking up…',
+    'Waiting for GitHub to finish its warm-up set…',
+    'Making the pictures shiny…',
+    'Persuading the CDN to do some cardio…',
+    'Foam-rolling the HTML…',
+    'Counting to ten between sets…',
+    'Deloading the cache…',
+    'Re-tying the shoelaces…',
+    'Almost there — last rep of the set…'
+  ];
+
+  /* `check` resolves true once the live site reflects the change. */
+  function waitForPages(check, title) {
+    var overlay = $('waiting');
+    var line = $('waiting-line');
+    var secs = $('waiting-secs');
     var started = Date.now();
+    var quirk = 0;
+
+    $('waiting-title').textContent = title;
+    line.textContent = QUIRKS[0];
+    secs.textContent = '0';
+    overlay.hidden = false;
+
+    var rotate = setInterval(function () {
+      quirk = (quirk + 1) % QUIRKS.length;
+      line.textContent = QUIRKS[quirk];
+    }, 2600);
+
+    var ticker = setInterval(function () {
+      secs.textContent = String(Math.round((Date.now() - started) / 1000));
+    }, 1000);
+
     return new Promise(function (resolve) {
+      var done = false;
+
+      function finish(ok) {
+        if (done) return;
+        done = true;
+        clearInterval(rotate);
+        clearInterval(ticker);
+        overlay.hidden = true;
+        resolve(ok);
+      }
+
+      $('waiting-skip').onclick = function () { finish(false); };
+
       (function tick() {
-        if (Date.now() - started > 180000) return resolve(false);
-        fetch(url + '?t=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
-          .then(function (r) {
-            if (r.ok) return resolve(true);
-            onWait(Math.round((Date.now() - started) / 1000));
-            setTimeout(tick, 4000);
+        if (done) return;
+        if (Date.now() - started > 180000) return finish(false);
+        check()
+          .then(function (ready) {
+            if (done) return;
+            if (ready) {
+              clearInterval(rotate);
+              line.textContent = 'Done — it is live.';
+              setTimeout(function () { finish(true); }, 800);
+            } else {
+              setTimeout(tick, 3000);
+            }
           })
-          .catch(function () {
-            onWait(Math.round((Date.now() - started) / 1000));
-            setTimeout(tick, 4000);
-          });
+          .catch(function () { setTimeout(tick, 3000); });
       })();
     });
+  }
+
+  /* Is the new post being served yet? */
+  function postIsLive(slug) {
+    return fetch('posts/' + slug + '.html?t=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+      .then(function (r) { return r.ok; });
+  }
+
+  /* Has the card actually gone from the served home page? That is what a
+     reader sees, so it is the thing worth waiting on. */
+  function cardIsGone(slug) {
+    return fetch('index.html?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.text(); })
+      .then(function (html) { return html.indexOf('posts/' + slug + '.html') === -1; });
+  }
+
+  function runningLocally() {
+    return /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ||
+           location.protocol === 'file:';
   }
 
   function afterPublish(d) {
     var log = $('log');
     var live = 'https://primeroutine.co.in';
-    var localhost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
     /* Served from a local dev server: the commit went to GitHub, so the
        index.html on disk here has not changed. Point at the real site. */
-    if (localhost || location.protocol === 'file:') {
+    if (runningLocally()) {
       say(log, 'You are running this locally, so the copy on disk is unchanged.');
       say(log, 'The post is on GitHub and will be live in about a minute:');
       say(log, live + '/posts/' + d.slug + '.html', 'ok');
@@ -831,22 +939,10 @@ A boxed aside.
       return;
     }
 
-    var line = document.createElement('div');
-    line.textContent = 'Waiting for GitHub Pages to rebuild…';
-    log.appendChild(line);
-
-    var skip = document.createElement('div');
-    skip.innerHTML = '<a href="index.html">Go to the home page now →</a>';
-    log.appendChild(skip);
-
-    return waitForDeploy('posts/' + d.slug + '.html', function (secs) {
-      line.textContent = 'Waiting for GitHub Pages to rebuild… ' + secs + 's';
-    }).then(function (ok) {
-      line.textContent = ok
-        ? 'Live. Opening the home page…'
-        : 'Still rebuilding after 3 minutes — opening the home page anyway.';
-      setTimeout(function () { location.href = 'index.html'; }, 900);
-    });
+    return waitForPages(function () { return postIsLive(d.slug); }, 'Publishing your post…')
+      .then(function () {
+        location.href = 'index.html';
+      });
   }
 
   /* ---------- publish ---------- */
