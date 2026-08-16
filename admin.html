@@ -75,6 +75,23 @@
   .shot img { border-radius: 8px; border: 1px solid var(--border); height: 66px; object-fit: cover; width: 100%; }
   .shot code { display: block; font-size: .64rem; color: var(--text-dim); word-break: break-all; margin-top: 3px; }
 
+  .post-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 0; border-bottom: 1px solid var(--border);
+  }
+  .post-row:last-child { border-bottom: 0; }
+  .post-row .name { flex: 1; min-width: 0; font-size: .9rem; }
+  .post-row .name span { display: block; font-size: .76rem; color: var(--text-dim); }
+  .post-row .name a { color: var(--text); }
+  .danger {
+    font: inherit; font-size: .78rem; font-weight: 650; cursor: pointer;
+    background: transparent; color: #dc2626;
+    border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px;
+  }
+  .danger:hover { border-color: #dc2626; background: rgba(220, 38, 38, .08); }
+  .danger[disabled] { opacity: .5; cursor: default; }
+  :root[data-theme="dark"] .danger, :root:not([data-theme="light"]) .danger { color: #f87171; }
+
   .preview { border: 1px solid var(--border); border-radius: 10px; padding: 4px 20px; background: var(--bg); }
   .preview .prose { padding: 16px 0; }
 
@@ -186,6 +203,12 @@
             Resized to 1600px wide and compressed before upload. Click a thumbnail to drop it into the post.
           </p>
           <div class="shots" id="shots"></div>
+        </div>
+
+        <div class="panel" style="margin-top:20px">
+          <h2>Published posts</h2>
+          <div id="posts-list"><p class="hint">Loading…</p></div>
+          <div class="log" id="manage-log"></div>
         </div>
       </div>
 
@@ -328,6 +351,7 @@ A boxed aside.
         $('lock').hidden = true;
         $('app').hidden = false;
         $('title').focus();
+        loadPosts();
       })
       .catch(function (err) {
         TOKEN = null;
@@ -616,6 +640,155 @@ A boxed aside.
       '        </div>\n      </li>\n';
   }
 
+  /* ---------- managing what is already published ---------- */
+
+  /* Reads the live index.html rather than this page's own markup, so the
+     list is whatever is actually published right now. */
+  function loadPosts() {
+    var box = $('posts-list');
+    box.innerHTML = '<p class="hint">Loading…</p>';
+
+    return gh('GET', '/repos/' + REPO + '/contents/index.html').then(function (file) {
+      var html = b64ToText(file.content.replace(/\n/g, ''));
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var rows = Array.prototype.slice.call(doc.querySelectorAll('[data-grid] li.card'));
+
+      box.innerHTML = '';
+      if (!rows.length) {
+        box.innerHTML = '<p class="hint">No posts in the grid.</p>';
+        return;
+      }
+
+      rows.forEach(function (li) {
+        var link = li.querySelector('h3 a');
+        if (!link) return;
+        var slug = (link.getAttribute('href') || '').replace(/^posts\//, '').replace(/\.html$/, '');
+        var title = link.textContent.trim();
+        var date = li.getAttribute('data-date') || 'no date';
+
+        var row = document.createElement('div');
+        row.className = 'post-row';
+
+        var name = document.createElement('div');
+        name.className = 'name';
+        var a = document.createElement('a');
+        a.href = 'posts/' + slug + '.html';
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = title;
+        var meta = document.createElement('span');
+        meta.textContent = date;
+        name.appendChild(a);
+        name.appendChild(meta);
+
+        var del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'danger';
+        del.textContent = 'Delete';
+        del.addEventListener('click', function () { deletePost(slug, title, del); });
+
+        row.appendChild(name);
+        row.appendChild(del);
+        box.appendChild(row);
+      });
+    }).catch(function (err) {
+      box.innerHTML = '';
+      var p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'Could not load the list: ' + err.message;
+      box.appendChild(p);
+    });
+  }
+
+  /* Cards carry no nested <li>, so the first closing tag ends the block. */
+  function removeCard(html, slug) {
+    var next = html.replace(/\n[ \t]*<li class="card[\s\S]*?<\/li>\n/g, function (block) {
+      return block.indexOf('href="posts/' + slug + '.html"') !== -1 ? '\n' : block;
+    });
+    if (next === html) return html;
+    /* Cutting a card out leaves its surrounding blank lines stacked up. */
+    return next.replace(/\n{3,}/g, '\n\n');
+  }
+
+  function deletePost(slug, title, btn) {
+    var log = $('manage-log');
+    log.innerHTML = '';
+
+    if (!window.confirm('Delete "' + title + '"?\n\nThis removes the post page, its pictures, and its card from the home page. It stays in the repository history, so it can be recovered with git.')) {
+      return;
+    }
+
+    btn.disabled = true;
+    say(log, 'Deleting "' + title + '" …');
+
+    /* Work out which uploads belong to this post before the page goes, so
+       nothing is left orphaned in assets/uploads. */
+    gh('GET', '/repos/' + REPO + '/contents/posts/' + slug + '.html')
+      .then(function (post) {
+        var images = [];
+        if (post) {
+          var source = b64ToText(post.content.replace(/\n/g, ''));
+          var seen = {};
+          (source.match(/assets\/uploads\/[A-Za-z0-9._-]+/g) || []).forEach(function (path) {
+            var name = path.replace(/^.*\//, '');
+            /* Only files this post named, so a shared picture is not taken
+               out from under another article. */
+            if (!seen[path] && name.indexOf(slug + '-') === 0) { seen[path] = true; images.push(path); }
+          });
+        }
+
+        var chain = Promise.resolve();
+
+        images.forEach(function (path) {
+          chain = chain.then(function () {
+            return gh('GET', '/repos/' + REPO + '/contents/' + path).then(function (img) {
+              if (!img) return null;
+              say(log, 'Removing ' + path + ' …');
+              return gh('DELETE', '/repos/' + REPO + '/contents/' + path, {
+                message: 'Remove image for deleted post: ' + title,
+                sha: img.sha
+              });
+            });
+          });
+        });
+
+        if (post) {
+          chain = chain.then(function () {
+            say(log, 'Removing posts/' + slug + '.html …');
+            return gh('DELETE', '/repos/' + REPO + '/contents/posts/' + slug + '.html', {
+              message: 'Delete post: ' + title,
+              sha: post.sha
+            });
+          });
+        } else {
+          say(log, 'No posts/' + slug + '.html to remove — taking out the card only.');
+        }
+
+        return chain;
+      })
+      .then(function () {
+        say(log, 'Taking the card out of index.html …');
+        return gh('GET', '/repos/' + REPO + '/contents/index.html').then(function (file) {
+          var html = b64ToText(file.content.replace(/\n/g, ''));
+          var next = removeCard(html, slug);
+          if (next === html) throw new Error('Could not find that card in index.html — nothing changed there.');
+          return gh('PUT', '/repos/' + REPO + '/contents/index.html', {
+            message: 'Remove "' + title + '" from the article grid',
+            content: textToB64(next),
+            sha: file.sha
+          });
+        });
+      })
+      .then(function () {
+        say(log, '✓ Deleted. Recover it with git if that was a mistake.', 'ok');
+        return loadPosts();
+      })
+      .catch(function (err) {
+        say(log, '✗ ' + err.message, 'bad');
+        btn.disabled = false;
+      });
+  }
+
   /* ---------- after publishing ---------- */
 
   /* The commit lands instantly but Pages needs a rebuild, so jumping to the
@@ -762,6 +935,7 @@ A boxed aside.
     chain.then(function () {
       say(log, '');
       say(log, '✓ Committed. The card is at the top of the article grid.', 'ok');
+      loadPosts();
       return afterPublish(d);
     }).catch(function (err) {
       say(log, '✗ ' + err.message, 'bad');
