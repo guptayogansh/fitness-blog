@@ -32,6 +32,17 @@
   var year = document.querySelector('[data-year]');
   if (year) year.textContent = String(new Date().getFullYear());
 
+  /* ---------- just published ---------- */
+  /* The editor sends you here as index.html?new=<slug> so the page cannot be
+     answered from a cache that predates the post. Once it has loaded, tidy
+     the parameter away and point out the new card. */
+  var justPublished = (location.search.match(/[?&]new=([^&]+)/) || [])[1];
+  if (justPublished) {
+    try {
+      history.replaceState(null, '', location.pathname + location.hash);
+    } catch (e) { /* older browsers keep the query, which is harmless */ }
+  }
+
   /* ---------- search + tag filter ---------- */
   var grid = document.querySelector('[data-grid]');
   if (grid) {
@@ -120,6 +131,16 @@
 
     sort();
     apply();
+
+    /* Draw the eye to the card that was just published. */
+    if (justPublished) {
+      var fresh = grid.querySelector('a[href="posts/' + justPublished + '.html"]');
+      var freshCard = fresh && fresh.closest('.card');
+      if (freshCard) {
+        freshCard.classList.add('just-published');
+        setTimeout(function () { freshCard.classList.remove('just-published'); }, 2600);
+      }
+    }
   }
 
   /* ---------- newsletter (no backend — swap the action for a real one) ---------- */

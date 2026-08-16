@@ -941,6 +941,12 @@ A boxed aside.
       .then(function (html) { return html.indexOf('posts/' + slug + '.html') === -1; });
   }
 
+  function cardIsPresent(slug) {
+    return refreshIndexCache()
+      .then(function (r) { return r.text(); })
+      .then(function (html) { return html.indexOf('posts/' + slug + '.html') !== -1; });
+  }
+
   function runningLocally() {
     return /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ||
            location.protocol === 'file:';
@@ -963,15 +969,20 @@ A boxed aside.
       return;
     }
 
-    return waitForPages(function () { return postIsLive(d.slug); }, 'Publishing your post…')
+    /* Publishing makes several commits — pictures, the post, then the home
+       page — and each triggers its own Pages build. Waiting only for the
+       post would stop one build too early, before the card exists. Both
+       have to be live before we go anywhere. */
+    return waitForPages(function () {
+      return Promise.all([postIsLive(d.slug), cardIsPresent(d.slug)])
+        .then(function (r) { return r[0] && r[1]; });
+    }, 'Publishing your post…')
       .then(function () {
-        /* The wait watched the post URL, which says nothing about the cached
-           home page — refresh that too, or we land on a grid without the
-           card we just added. */
-        return refreshIndexCache().catch(function () {});
-      })
-      .then(function () {
-        location.href = 'index.html';
+        /* Land on a URL that has never been cached by anything — the browser
+           store and the CDN both key on the query string, so this cannot be
+           answered with a copy from before the post existed. main.js tidies
+           the parameter out of the address bar once the page loads. */
+        location.href = 'index.html?new=' + encodeURIComponent(d.slug);
       });
   }
 
