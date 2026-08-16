@@ -279,10 +279,9 @@ A boxed aside.
       <div class="spinner" aria-hidden="true"></div>
       <h2 id="waiting-title">Publishing…</h2>
       <p class="waiting-line" id="waiting-line"></p>
-      <p class="waiting-meta">
+      <p class="waiting-meta" id="waiting-meta" hidden>
         <span id="waiting-secs">0</span>s elapsed · GitHub usually takes about a minute
       </p>
-      <button class="tag" type="button" id="waiting-skip">Don't wait, let me carry on</button>
     </div>
   </div>
 </main>
@@ -766,6 +765,7 @@ A boxed aside.
 
     btn.disabled = true;
     say(log, 'Deleting "' + title + '" …');
+    showWaiting('Hang on…', 'Removing "' + title + '" from GitHub…');
 
     /* Work out which uploads belong to this post before the page goes, so
        nothing is left orphaned in assets/uploads. */
@@ -790,6 +790,7 @@ A boxed aside.
             return gh('GET', '/repos/' + REPO + '/contents/' + path).then(function (img) {
               if (!img) return null;
               say(log, 'Removing ' + path + ' …');
+              waitingLine('Removing ' + path.replace(/^.*\//, '') + ' …');
               return gh('DELETE', '/repos/' + REPO + '/contents/' + path, {
                 message: 'Remove image for deleted post: ' + title,
                 sha: img.sha
@@ -801,6 +802,7 @@ A boxed aside.
         if (post) {
           chain = chain.then(function () {
             say(log, 'Removing posts/' + slug + '.html …');
+            waitingLine('Removing the article page…');
             return gh('DELETE', '/repos/' + REPO + '/contents/posts/' + slug + '.html', {
               message: 'Delete post: ' + title,
               sha: post.sha
@@ -814,6 +816,7 @@ A boxed aside.
       })
       .then(function () {
         say(log, 'Taking the card out of index.html …');
+        waitingLine('Taking it off the home page…');
         return gh('GET', '/repos/' + REPO + '/contents/index.html').then(function (file) {
           var html = b64ToText(file.content.replace(/\n/g, ''));
           var next = removeCard(html, slug);
@@ -830,6 +833,7 @@ A boxed aside.
         loadPosts();
 
         if (runningLocally()) {
+          hideWaiting();
           say(log, 'You are running locally, so your own copy still shows it.');
           say(log, 'Run `git pull` to bring the deletion down to your machine.');
           return;
@@ -840,6 +844,7 @@ A boxed aside.
         return waitForPages(function () { return cardIsGone(slug); }, 'Removing the article…');
       })
       .catch(function (err) {
+        hideWaiting();
         say(log, '✗ ' + err.message, 'bad');
         btn.disabled = false;
       });
@@ -863,6 +868,25 @@ A boxed aside.
     'Almost there — last rep of the set…'
   ];
 
+  /* Put something on screen the instant a button is pressed. The commits
+     themselves take a few seconds, and an unresponsive page in that gap
+     invites a second click. */
+  function showWaiting(title, line) {
+    $('waiting-title').textContent = title;
+    $('waiting-line').textContent = line || '';
+    $('waiting-meta').hidden = true;      /* no elapsed counter until the deploy wait */
+    $('waiting-secs').textContent = '0';
+    $('waiting').hidden = false;
+  }
+
+  function waitingLine(text) {
+    if (!$('waiting').hidden) $('waiting-line').textContent = text;
+  }
+
+  function hideWaiting() {
+    $('waiting').hidden = true;
+  }
+
   /* `check` resolves true once the live site reflects the change. */
   function waitForPages(check, title) {
     var overlay = $('waiting');
@@ -874,6 +898,7 @@ A boxed aside.
     $('waiting-title').textContent = title;
     line.textContent = QUIRKS[0];
     secs.textContent = '0';
+    $('waiting-meta').hidden = false;
     overlay.hidden = false;
 
     var rotate = setInterval(function () {
@@ -896,8 +921,6 @@ A boxed aside.
         overlay.hidden = true;
         resolve(ok);
       }
-
-      $('waiting-skip').onclick = function () { finish(false); };
 
       (function tick() {
         if (done) return;
@@ -959,6 +982,7 @@ A boxed aside.
     /* Served from a local dev server: the commit went to GitHub, so the
        index.html on disk here has not changed. Point at the real site. */
     if (runningLocally()) {
+      hideWaiting();
       say(log, 'You are running this locally, so the copy on disk is unchanged.');
       say(log, 'The post is on GitHub and will be live in about a minute:');
       say(log, live + '/posts/' + d.slug + '.html', 'ok');
@@ -1031,6 +1055,9 @@ A boxed aside.
     }
 
     $('publish').disabled = true;
+    showWaiting('Hang on…', pending.length
+      ? 'Sending your pictures and the post to GitHub…'
+      : 'Sending the post to GitHub…');
 
     var chain = Promise.resolve();
 
@@ -1038,6 +1065,7 @@ A boxed aside.
     pending.forEach(function (p) {
       chain = chain.then(function () {
         say(log, 'Uploading ' + p.path + ' …');
+        waitingLine('Uploading ' + p.path.replace(/^.*\//, '') + ' …');
         return putFile(p.path, p.b64, 'Add image ' + p.path);
       });
     });
@@ -1045,12 +1073,14 @@ A boxed aside.
     /* 2. the post itself */
     chain = chain.then(function () {
       say(log, 'Writing posts/' + d.slug + '.html …');
+      waitingLine('Writing the article page…');
       return putFile('posts/' + d.slug + '.html', textToB64(postPage(d)), 'Add post: ' + d.title);
     });
 
     /* 3. splice the card into the home page grid */
     chain = chain.then(function () {
       say(log, 'Adding the card to index.html …');
+      waitingLine('Adding it to the home page…');
       return gh('GET', '/repos/' + REPO + '/contents/index.html').then(function (file) {
         var html = b64ToText(file.content.replace(/\n/g, ''));
         var anchor = '<ul class="grid" data-grid>\n';
@@ -1075,6 +1105,7 @@ A boxed aside.
       loadPosts();
       return afterPublish(d);
     }).catch(function (err) {
+      hideWaiting();
       say(log, '✗ ' + err.message, 'bad');
       say(log, 'Nothing further was written. Fix the problem and press Publish again.');
       $('publish').disabled = false;
