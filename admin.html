@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Write a post — Prime Routine</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🔒%3C/text%3E%3C/svg%3E">
+<script>
+  try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+</script>
+<style>
+  .lock { min-height: 78vh; display: grid; place-items: center; padding: 24px; }
+  .lock-box { width: 100%; max-width: 460px; text-align: center; }
+  .lock-box h1 { font-size: 1.5rem; margin: 0 0 6px; }
+  .lock-box p { color: var(--text-dim); margin: 0 0 22px; font-size: .95rem; }
+  .lock-box input {
+    width: 100%; padding: 12px 14px; border-radius: 10px; font: inherit;
+    border: 1px solid var(--border); background: var(--bg-card); color: var(--text);
+  }
+  .lock-box input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .lock-box .btn { width: 100%; margin-top: 10px; }
+
+  .editor { display: grid; gap: 22px; padding: 26px 0 60px; }
+  @media (min-width: 1000px) { .editor { grid-template-columns: 1fr 1fr; align-items: start; } }
+
+  .panel {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+  }
+  .panel h2 { margin: 0 0 16px; font-size: 1rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); }
+
+  .field { margin-bottom: 15px; }
+  .field label { display: block; font-size: .85rem; font-weight: 650; margin-bottom: 5px; }
+  .field .hint { font-weight: 400; color: var(--text-dim); }
+  .field input[type=text], .field select, .field textarea {
+    width: 100%; padding: 9px 11px; border-radius: 9px; font: inherit;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  }
+  .field textarea { resize: vertical; line-height: 1.6; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+
+  .checks { display: flex; flex-wrap: wrap; gap: 8px; }
+  .checks label {
+    display: inline-flex; align-items: center; gap: 6px; font-weight: 500;
+    background: var(--bg-soft); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 10px; cursor: pointer; margin: 0; font-size: .85rem;
+  }
+  .checks input { accent-color: var(--accent); }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .toolbar button {
+    font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer;
+    background: var(--bg-soft); color: var(--text-dim);
+    border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px;
+  }
+  .toolbar button:hover { border-color: var(--accent); color: var(--accent-text); }
+
+  #body { min-height: 420px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; }
+
+  .shots { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+  .shot { position: relative; width: 92px; }
+  .shot img { border-radius: 8px; border: 1px solid var(--border); height: 66px; object-fit: cover; width: 100%; }
+  .shot code { display: block; font-size: .64rem; color: var(--text-dim); word-break: break-all; margin-top: 3px; }
+
+  .preview { border: 1px solid var(--border); border-radius: 10px; padding: 4px 20px; background: var(--bg); }
+  .preview .prose { padding: 16px 0; }
+
+  .log {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem;
+    background: var(--bg-soft); border: 1px solid var(--border); border-radius: 9px;
+    padding: 12px; margin-top: 14px; max-height: 190px; overflow: auto; white-space: pre-wrap;
+  }
+  .log:empty { display: none; }
+  .ok { color: var(--accent-text); }
+  .bad { color: #dc2626; }
+  :root[data-theme="dark"] .bad, :root:not([data-theme="light"]) .bad { color: #f87171; }
+
+  .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .who { font-size: .85rem; color: var(--text-dim); margin-left: auto; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">🏋</span> Prime Routine</a>
+    <nav class="nav-links" aria-label="Primary"><a href="index.html">Back to site</a></nav>
+    <button class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============ locked ============ -->
+  <section class="lock" id="lock">
+    <div class="lock-box">
+      <h1>🔒 Admin</h1>
+      <p>Enter your passphrase to unlock the editor.</p>
+      <form id="unlock-form">
+        <input type="password" id="passphrase" placeholder="passphrase" autocomplete="current-password"
+               spellcheck="false" autofocus aria-label="Passphrase">
+        <button class="btn" type="submit" id="unlock-btn">Unlock</button>
+      </form>
+      <div class="log" id="lock-log"></div>
+    </div>
+  </section>
+
+  <!-- ============ unlocked ============ -->
+  <div class="wrap" id="app" hidden>
+    <div class="editor">
+
+      <div>
+        <div class="panel">
+          <h2>Post details</h2>
+
+          <div class="field">
+            <label for="title">Title</label>
+            <input type="text" id="title" placeholder="How to Actually Warm Up">
+          </div>
+
+          <div class="field">
+            <label for="slug">File name <span class="hint">— posts/<span id="slug-echo">your-post</span>.html</span></label>
+            <input type="text" id="slug" placeholder="how-to-actually-warm-up">
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="category">Category</label>
+              <select id="category">
+                <option>Strength</option><option>Cardio</option><option>Nutrition</option>
+                <option>Mobility</option><option>Recovery</option><option>Habits</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="emoji">Card emoji</label>
+              <input type="text" id="emoji" value="🏋️" maxlength="4">
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Tags <span class="hint">— drive the filter buttons</span></label>
+            <div class="checks" id="tags">
+              <label><input type="checkbox" value="strength">strength</label>
+              <label><input type="checkbox" value="cardio">cardio</label>
+              <label><input type="checkbox" value="nutrition">nutrition</label>
+              <label><input type="checkbox" value="mobility">mobility</label>
+              <label><input type="checkbox" value="recovery">recovery</label>
+              <label><input type="checkbox" value="habits">habits</label>
+              <label><input type="checkbox" value="beginner">beginner</label>
+              <label><input type="checkbox" value="endurance">endurance</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="excerpt">Card summary <span class="hint">— 2–3 lines on the home page</span></label>
+            <textarea id="excerpt" rows="3" placeholder="What the reader gets out of it."></textarea>
+          </div>
+
+          <div class="field">
+            <label for="description">Search-engine description <span class="hint">— optional, defaults to the summary</span></label>
+            <textarea id="description" rows="2"></textarea>
+          </div>
+
+          <div class="checks">
+            <label><input type="checkbox" id="featured">Feature it at the top</label>
+            <label><input type="checkbox" id="use-cover" checked>First picture becomes the card image</label>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:20px">
+          <h2>Pictures</h2>
+          <input type="file" id="pics" accept="image/*" multiple>
+          <p class="field hint" style="margin:8px 0 0">
+            Resized to 1600px wide and compressed before upload. Click a thumbnail to drop it into the post.
+          </p>
+          <div class="shots" id="shots"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <h2>Body</h2>
+          <div class="toolbar">
+            <button type="button" data-ins="## ">Heading</button>
+            <button type="button" data-ins="### ">Sub-heading</button>
+            <button type="button" data-wrap="**">Bold</button>
+            <button type="button" data-wrap="*">Italic</button>
+            <button type="button" data-ins="- ">List</button>
+            <button type="button" data-ins="> ">Quote</button>
+            <button type="button" data-ins="::: Note\nSomething worth pulling out.\n:::">Callout</button>
+            <button type="button" data-ins="[text](https://)">Link</button>
+          </div>
+          <textarea id="body" spellcheck="true" placeholder="Write here.
+
+## A heading
+
+A paragraph. **Bold** and *italic* both work.
+
+- a list item
+- another
+
+> A pulled-out quote.
+
+::: Callout title
+A boxed aside.
+:::"></textarea>
+          <div class="bar" style="margin-top:14px">
+            <button class="btn" type="button" id="publish">Publish</button>
+            <button class="tag" type="button" id="lock-again">Lock</button>
+            <span class="who" id="who"></span>
+          </div>
+          <div class="log" id="log"></div>
+        </div>
+
+        <div class="panel" style="margin-top:20px">
+          <h2>Preview</h2>
+          <div class="preview"><div class="prose" id="preview"></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner"><span>© <span data-year>2026</span> Prime Routine</span></div>
+</footer>
+
+<script src="assets/js/main.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* The decrypted GitHub token. Memory only — never localStorage, never a
+     cookie, so closing the tab genuinely logs you out. */
+  var TOKEN = null;
+  var REPO = null;
+  var API = 'https://api.github.com';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function say(el, msg, cls) {
+    var line = document.createElement('div');
+    if (cls) line.className = cls;
+    line.textContent = msg;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  /* ---------- base64 <-> bytes ---------- */
+  function b64ToBytes(b64) {
+    var bin = atob(b64), out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function bytesToB64(bytes) {
+    var bin = '', chunk = 0x8000;
+    for (var i = 0; i < bytes.length; i += chunk) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(bin);
+  }
+  function textToB64(str) { return bytesToB64(new TextEncoder().encode(str)); }
+  function b64ToText(b64) { return new TextDecoder().decode(b64ToBytes(b64)); }
+
+  /* ---------- unlock ---------- */
+  $('unlock-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    unlock($('passphrase').value);
+  });
+
+  function unlock(passphrase) {
+    var log = $('lock-log');
+    log.innerHTML = '';
+    if (!passphrase) return;
+    $('unlock-btn').disabled = true;
+    say(log, 'Deriving key…');
+
+    fetch('admin-key.json?t=' + Date.now())
+      .then(function (r) {
+        if (!r.ok) throw new Error('admin-key.json not found — run the setup script first.');
+        return r.json();
+      })
+      .then(function (keyfile) {
+        REPO = keyfile.repo;
+        var enc = new TextEncoder();
+        return crypto.subtle
+          .importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey'])
+          .then(function (base) {
+            return crypto.subtle.deriveKey(
+              { name: 'PBKDF2', salt: b64ToBytes(keyfile.salt), iterations: keyfile.iterations, hash: 'SHA-256' },
+              base,
+              { name: 'AES-GCM', length: 256 },
+              false,
+              ['decrypt']
+            );
+          })
+          .then(function (key) {
+            return crypto.subtle.decrypt(
+              { name: 'AES-GCM', iv: b64ToBytes(keyfile.iv) },
+              key,
+              b64ToBytes(keyfile.ct)
+            );
+          });
+      })
+      .then(function (plain) {
+        TOKEN = new TextDecoder().decode(plain).trim();
+        return gh('GET', '/repos/' + REPO);
+      })
+      .then(function (repo) {
+        /* A 404 here means the token is valid but scoped to other repos —
+           or has expired. Either way it cannot write to this one. */
+        if (!repo) throw new Error('Token cannot see ' + REPO + '. Check it has not expired, and that it grants Contents access to this repository.');
+        if (!repo.permissions || !repo.permissions.push) {
+          throw new Error('That token can read ' + REPO + ' but not write to it. It needs Contents: Read and write.');
+        }
+        $('who').textContent = 'unlocked · ' + REPO;
+        $('lock').hidden = true;
+        $('app').hidden = false;
+        $('title').focus();
+      })
+      .catch(function (err) {
+        TOKEN = null;
+        $('unlock-btn').disabled = false;
+        /* A bad passphrase fails as a GCM auth error — there is no "check"
+           to bypass, the bytes simply do not decrypt. */
+        var msg = /operation-specific reason|OperationError/i.test(String(err))
+          ? 'Wrong passphrase.'
+          : err.message;
+        say(log, msg, 'bad');
+      });
+  }
+
+  $('lock-again').addEventListener('click', function () { location.reload(); });
+
+  /* ---------- GitHub API ---------- */
+  function gh(method, path, body) {
+    return fetch(API + path, {
+      method: method,
+      headers: {
+        Authorization: 'Bearer ' + TOKEN,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28'
+      },
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function (r) {
+      if (r.status === 404 && method === 'GET') return null;
+      return r.json().then(function (data) {
+        if (!r.ok) throw new Error((data && data.message) || (method + ' ' + path + ' failed: ' + r.status));
+        return data;
+      });
+    });
+  }
+
+  /* Writes a file, carrying the existing blob sha when one is there so an
+     overwrite is an update rather than a rejected create. */
+  function putFile(path, contentB64, message) {
+    return gh('GET', '/repos/' + REPO + '/contents/' + path).then(function (existing) {
+      var payload = { message: message, content: contentB64 };
+      if (existing && existing.sha) payload.sha = existing.sha;
+      return gh('PUT', '/repos/' + REPO + '/contents/' + path, payload);
+    });
+  }
+
+  /* ---------- slug + read time ---------- */
+  function slugify(s) {
+    return s.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '').slice(0, 60);
+  }
+
+  var slugTouched = false;
+  $('slug').addEventListener('input', function () { slugTouched = true; echoSlug(); });
+  function echoSlug() { $('slug-echo').textContent = $('slug').value || 'your-post'; }
+  $('title').addEventListener('input', function () {
+    if (!slugTouched) $('slug').value = slugify($('title').value);
+    echoSlug();
+  });
+
+  function readTime(text) { return Math.max(1, Math.round(text.trim().split(/\s+/).length / 220)); }
+
+  /* ---------- pictures ---------- */
+  var pending = [];   /* { path, b64, url } waiting to be committed */
+
+  $('pics').addEventListener('change', function (e) {
+    Array.prototype.forEach.call(e.target.files, addPicture);
+    e.target.value = '';
+  });
+
+  function addPicture(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        var max = 1600;
+        var scale = Math.min(1, max / img.width);
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        var dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        var base = slugify($('slug').value || $('title').value || 'image') || 'image';
+        var name = base + '-' + (pending.length + 1) + '.jpg';
+        var item = { path: 'assets/uploads/' + name, b64: dataUrl.split(',')[1], url: dataUrl };
+        pending.push(item);
+
+        var box = document.createElement('div');
+        box.className = 'shot';
+        var thumb = new Image();
+        thumb.src = dataUrl;
+        thumb.alt = '';
+        thumb.title = 'Insert into the post';
+        thumb.style.cursor = 'pointer';
+        thumb.addEventListener('click', function () {
+          insert('\n![Describe the picture](' + name + ')\n');
+        });
+        var code = document.createElement('code');
+        code.textContent = name + ' · ' + Math.round(item.b64.length * 0.75 / 1024) + ' KB';
+        box.appendChild(thumb);
+        box.appendChild(code);
+        $('shots').appendChild(box);
+        render();
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  /* ---------- toolbar ---------- */
+  var body = $('body');
+
+  function insert(text) {
+    var start = body.selectionStart, end = body.selectionEnd;
+    body.value = body.value.slice(0, start) + text + body.value.slice(end);
+    body.selectionStart = body.selectionEnd = start + text.length;
+    body.focus();
+    render();
+  }
+
+  document.querySelectorAll('.toolbar button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var wrap = btn.getAttribute('data-wrap');
+      if (wrap) {
+        var s = body.selectionStart, e = body.selectionEnd;
+        var picked = body.value.slice(s, e) || 'text';
+        body.value = body.value.slice(0, s) + wrap + picked + wrap + body.value.slice(e);
+        body.selectionStart = s + wrap.length;
+        body.selectionEnd = s + wrap.length + picked.length;
+        body.focus();
+        render();
+      } else {
+        insert(btn.getAttribute('data-ins').replace(/\\n/g, '\n'));
+      }
+    });
+  });
+
+  /* ---------- markdown-lite -> the site's HTML idiom ---------- */
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function inline(s) {
+    return esc(s)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  }
+
+  /* `depth` is how far the page sits from the repo root, so image paths
+     resolve from both posts/foo.html and this preview. */
+  function toHtml(src, depth) {
+    var prefix = depth ? '../' : '';
+    var lines = src.replace(/\r/g, '').split('\n');
+    var out = [], para = [], list = null, i;
+
+    function flushPara() {
+      if (para.length) { out.push('    <p>\n      ' + inline(para.join(' ')) + '\n    </p>'); para = []; }
+    }
+    function flushList() {
+      if (list) { out.push('    <' + list.tag + '>\n' + list.items.join('\n') + '\n    </' + list.tag + '>'); list = null; }
+    }
+    function flush() { flushPara(); flushList(); }
+
+    for (i = 0; i < lines.length; i++) {
+      var line = lines[i], m;
+
+      if (!line.trim()) { flush(); continue; }
+
+      if ((m = line.match(/^!\[([^\]]*)\]\(([^)]+)\)\s*$/))) {
+        flush();
+        var src2 = /^https?:/.test(m[2]) ? m[2] : prefix + 'assets/uploads/' + m[2].replace(/^.*\//, '');
+        out.push('    <figure>\n      <img src="' + esc(src2) + '" alt="' + esc(m[1]) + '" loading="lazy">' +
+                 (m[1] ? '\n      <figcaption>' + inline(m[1]) + '</figcaption>' : '') + '\n    </figure>');
+        continue;
+      }
+      if ((m = line.match(/^###\s+(.*)$/))) { flush(); out.push('    <h3>' + inline(m[1]) + '</h3>'); continue; }
+      if ((m = line.match(/^##\s+(.*)$/)))  { flush(); out.push('    <h2>' + inline(m[1]) + '</h2>'); continue; }
+      if ((m = line.match(/^>\s?(.*)$/)))   { flush(); out.push('    <blockquote>\n      ' + inline(m[1]) + '\n    </blockquote>'); continue; }
+
+      if ((m = line.match(/^:::\s*(.*)$/))) {
+        flush();
+        var title = m[1], inner = [];
+        while (++i < lines.length && !/^:::/.test(lines[i])) inner.push(lines[i]);
+        out.push('    <div class="callout">\n' +
+                 (title ? '      <strong>' + inline(title) + '</strong>\n' : '') +
+                 '      <p>\n        ' + inline(inner.join(' ').trim()) + '\n      </p>\n    </div>');
+        continue;
+      }
+
+      if ((m = line.match(/^[-*]\s+(.*)$/))) {
+        flushPara();
+        if (!list || list.tag !== 'ul') { flushList(); list = { tag: 'ul', items: [] }; }
+        list.items.push('      <li>' + inline(m[1]) + '</li>');
+        continue;
+      }
+      if ((m = line.match(/^\d+\.\s+(.*)$/))) {
+        flushPara();
+        if (!list || list.tag !== 'ol') { flushList(); list = { tag: 'ol', items: [] }; }
+        list.items.push('      <li>' + inline(m[1]) + '</li>');
+        continue;
+      }
+
+      flushList();
+      para.push(line.trim());
+    }
+    flush();
+    return out.join('\n\n');
+  }
+
+  /* ---------- live preview ---------- */
+  function render() {
+    var html = toHtml(body.value, 0);
+    /* Preview only: point uploads at the in-memory copies, which are not
+       committed yet and so would 404 against the live site. */
+    pending.forEach(function (p) {
+      var name = p.path.replace(/^.*\//, '');
+      html = html.split('assets/uploads/' + name).join(p.url);
+    });
+    $('preview').innerHTML = html || '<p style="color:var(--text-dim)">Nothing yet.</p>';
+  }
+  body.addEventListener('input', render);
+
+  /* ---------- page + card templates ---------- */
+  function postPage(d) {
+    return '<!DOCTYPE html>\n<html lang="en">\n<head>\n' +
+      '<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+      '<title>' + esc(d.title) + ' — Prime Routine</title>\n' +
+      '<meta name="description" content="' + esc(d.description) + '">\n' +
+      '<link rel="stylesheet" href="../assets/css/style.css">\n' +
+      '<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ctext y=\'.9em\' font-size=\'90\'%3E🏋️%3C/text%3E%3C/svg%3E">\n' +
+      '<script>\n  try { var t = localStorage.getItem(\'theme\'); if (t) document.documentElement.setAttribute(\'data-theme\', t); } catch (e) {}\n<\/script>\n' +
+      '</head>\n<body>\n<a class="skip" href="#main">Skip to content</a>\n\n' +
+      '<header class="site-header">\n  <div class="wrap nav">\n' +
+      '    <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true">🏋</span> Prime Routine</a>\n' +
+      '    <nav class="nav-links" aria-label="Primary">\n' +
+      '      <a href="../index.html">Articles</a>\n      <a href="../about.html">About</a>\n' +
+      '      <a href="../index.html#subscribe">Subscribe</a>\n    </nav>\n' +
+      '    <button class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>\n' +
+      '  </div>\n</header>\n\n<main id="main">\n  <div class="article-header">\n    <div class="wrap narrow">\n' +
+      '      <div class="article-meta">' + esc(d.category) + ' <span class="dot">·</span> ' + d.minutes +
+      ' min read <span class="dot">·</span> ' + d.date + '</div>\n' +
+      '      <h1>' + esc(d.title) + '</h1>\n    </div>\n  </div>\n\n' +
+      '  <article class="wrap narrow prose">\n' + d.bodyHtml + '\n\n' +
+      '    <div class="article-foot">\n      <a href="../index.html">← All articles</a>\n    </div>\n' +
+      '  </article>\n</main>\n\n<footer class="site-footer">\n  <div class="wrap footer-inner">\n' +
+      '    <span>© <span data-year>2026</span> Prime Routine</span>\n' +
+      '    <nav class="footer-links" aria-label="Footer">\n      <a href="../index.html">Articles</a>\n' +
+      '      <a href="../about.html">About</a>\n      <a href="../index.html#subscribe">Subscribe</a>\n' +
+      '    </nav>\n  </div>\n</footer>\n\n<script src="../assets/js/main.js"><\/script>\n</body>\n</html>\n';
+  }
+
+  function card(d) {
+    var art = d.cover
+      ? '<div class="card-art" aria-hidden="true"><img src="' + esc(d.cover) + '" alt=""></div>'
+      : '<div class="card-art" aria-hidden="true">' + d.emoji + '</div>';
+    var meta = d.featured ? 'Featured · ' + d.minutes + ' min read'
+                          : esc(d.category) + ' · ' + d.minutes + ' min read';
+    var pills = d.tags.map(function (t) { return '<span class="pill">' + esc(t) + '</span>'; }).join('');
+
+    return '\n      <li class="card' + (d.featured ? ' featured' : '') + '"\n' +
+      '          data-post="' + esc(d.search) + '"\n' +
+      '          data-tags="' + esc(d.tags.join(',')) + '">\n' +
+      '        ' + art + '\n' +
+      '        <div class="card-body">\n' +
+      '          <div class="card-meta">' + meta + '</div>\n' +
+      '          <h3><a href="posts/' + d.slug + '.html">' + esc(d.title) + '</a></h3>\n' +
+      '          <p>\n            ' + esc(d.excerpt) + '\n          </p>\n' +
+      '          <div class="card-foot">' + pills + '</div>\n' +
+      '        </div>\n      </li>\n';
+  }
+
+  /* ---------- publish ---------- */
+  $('publish').addEventListener('click', function () {
+    var log = $('log');
+    log.innerHTML = '';
+
+    var tags = Array.prototype.slice.call(document.querySelectorAll('#tags input:checked'))
+      .map(function (c) { return c.value; });
+
+    var d = {
+      title: $('title').value.trim(),
+      slug: ($('slug').value.trim() || slugify($('title').value)),
+      category: $('category').value,
+      emoji: $('emoji').value.trim() || '🏋️',
+      excerpt: $('excerpt').value.trim(),
+      description: $('description').value.trim() || $('excerpt').value.trim(),
+      featured: $('featured').checked,
+      tags: tags,
+      minutes: readTime(body.value),
+      date: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      cover: (pending.length && $('use-cover').checked) ? pending[0].path : null
+    };
+
+    if (!d.title)   return say(log, 'Give it a title.', 'bad');
+    if (!d.slug)    return say(log, 'Give it a file name.', 'bad');
+    if (!d.excerpt) return say(log, 'Write the card summary — it shows on the home page.', 'bad');
+    if (!tags.length) return say(log, 'Pick at least one tag, or it will not show under any filter.', 'bad');
+    if (!body.value.trim()) return say(log, 'The post is empty.', 'bad');
+
+    /* What the home-page search matches against. */
+    d.search = (d.title + ' ' + d.excerpt + ' ' + tags.join(' '))
+      .toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    d.bodyHtml = toHtml(body.value, 1);
+
+    $('publish').disabled = true;
+
+    var chain = Promise.resolve();
+
+    /* 1. pictures first, so the post never points at a file that is not there yet */
+    pending.forEach(function (p) {
+      chain = chain.then(function () {
+        say(log, 'Uploading ' + p.path + ' …');
+        return putFile(p.path, p.b64, 'Add image ' + p.path);
+      });
+    });
+
+    /* 2. the post itself */
+    chain = chain.then(function () {
+      say(log, 'Writing posts/' + d.slug + '.html …');
+      return putFile('posts/' + d.slug + '.html', textToB64(postPage(d)), 'Add post: ' + d.title);
+    });
+
+    /* 3. splice the card into the home page grid */
+    chain = chain.then(function () {
+      say(log, 'Adding the card to index.html …');
+      return gh('GET', '/repos/' + REPO + '/contents/index.html').then(function (file) {
+        var html = b64ToText(file.content.replace(/\n/g, ''));
+        var anchor = '<ul class="grid" data-grid>\n';
+        if (html.indexOf(anchor) === -1) throw new Error('Could not find the article grid in index.html.');
+        if (html.indexOf('posts/' + d.slug + '.html') !== -1) {
+          say(log, 'A card for this post is already there — leaving index.html alone.');
+          return null;
+        }
+        html = html.replace(anchor, anchor + card(d));
+        return gh('PUT', '/repos/' + REPO + '/contents/index.html', {
+          message: 'Add "' + d.title + '" to the article grid',
+          content: textToB64(html),
+          sha: file.sha
+        });
+      });
+    });
+
+    chain.then(function () {
+      say(log, '');
+      say(log, '✓ Published. GitHub Pages usually takes about a minute.', 'ok');
+      say(log, 'https://primeroutine.co.in/posts/' + d.slug + '.html', 'ok');
+      $('publish').disabled = false;
+    }).catch(function (err) {
+      say(log, '✗ ' + err.message, 'bad');
+      say(log, 'Nothing further was written. Fix the problem and press Publish again.');
+      $('publish').disabled = false;
+    });
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
