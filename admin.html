@@ -11,6 +11,10 @@
   try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
 </script>
 <style>
+  /* .lock sets display:grid, which would otherwise beat the browser's
+     [hidden] rule and leave the passphrase box on screen after unlocking. */
+  [hidden] { display: none !important; }
+
   .lock { min-height: 78vh; display: grid; place-items: center; padding: 24px; }
   .lock-box { width: 100%; max-width: 460px; text-align: center; }
   .lock-box h1 { font-size: 1.5rem; margin: 0 0 6px; }
@@ -23,7 +27,12 @@
   .lock-box .btn { width: 100%; margin-top: 10px; }
 
   .editor { display: grid; gap: 22px; padding: 26px 0 60px; }
-  @media (min-width: 1000px) { .editor { grid-template-columns: 1fr 1fr; align-items: start; } }
+  /* The editor wants more room than the blog's 1080px reading column, and
+     the writing side wants more of it than the metadata side. */
+  #app.wrap { max-width: 1500px; }
+  @media (min-width: 1000px) {
+    .editor { grid-template-columns: minmax(300px, 380px) 1fr; align-items: start; }
+  }
 
   .panel {
     background: var(--bg-card); border: 1px solid var(--border);
@@ -59,7 +68,7 @@
   }
   .toolbar button:hover { border-color: var(--accent); color: var(--accent-text); }
 
-  #body { min-height: 420px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; }
+  #body { min-height: 560px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92rem; }
 
   .shots { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
   .shot { position: relative; width: 92px; }
@@ -80,7 +89,6 @@
   :root[data-theme="dark"] .bad, :root:not([data-theme="light"]) .bad { color: #f87171; }
 
   .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .who { font-size: .85rem; color: var(--text-dim); margin-left: auto; }
 </style>
 </head>
 <body>
@@ -211,7 +219,6 @@ A boxed aside.
           <div class="bar" style="margin-top:14px">
             <button class="btn" type="button" id="publish">Publish</button>
             <button class="tag" type="button" id="lock-again">Lock</button>
-            <span class="who" id="who"></span>
           </div>
           <div class="log" id="log"></div>
         </div>
@@ -318,7 +325,6 @@ A boxed aside.
         if (!repo.permissions || !repo.permissions.push) {
           throw new Error('That token can read ' + REPO + ' but not write to it. It needs Contents: Read and write.');
         }
-        $('who').textContent = 'unlocked · ' + REPO;
         $('lock').hidden = true;
         $('app').hidden = false;
         $('title').focus();
@@ -564,13 +570,29 @@ A boxed aside.
       '      <div class="article-meta">' + esc(d.category) + ' <span class="dot">·</span> ' + d.minutes +
       ' min read <span class="dot">·</span> ' + d.date + '</div>\n' +
       '      <h1>' + esc(d.title) + '</h1>\n    </div>\n  </div>\n\n' +
-      '  <article class="wrap narrow prose">\n' + d.bodyHtml + '\n\n' +
+      '  <article class="wrap narrow prose">\n' +
+      (d.hero ? '    <figure class="post-hero">\n      <img src="../' + esc(d.hero) +
+                '" alt="' + esc(d.heroAlt || '') + '">\n    </figure>\n\n' : '') +
+      d.bodyHtml + '\n\n' +
       '    <div class="article-foot">\n      <a href="../index.html">← All articles</a>\n    </div>\n' +
       '  </article>\n</main>\n\n<footer class="site-footer">\n  <div class="wrap footer-inner">\n' +
       '    <span>© <span data-year>2026</span> Prime Routine</span>\n' +
       '    <nav class="footer-links" aria-label="Footer">\n      <a href="../index.html">Articles</a>\n' +
       '      <a href="../about.html">About</a>\n      <a href="../index.html#subscribe">Subscribe</a>\n' +
       '    </nav>\n  </div>\n</footer>\n\n<script src="../assets/js/main.js"><\/script>\n</body>\n</html>\n';
+  }
+
+  /* A .featured card spans all three grid columns, so leaving an older one
+     below a newer normal card would strand two empty cells in the top row.
+     Only the newest post keeps the full-width slot. */
+  function demoteFeatured(html) {
+    return html.replace(/<li class="card featured"[\s\S]*?<\/li>/, function (block) {
+      var pill = (block.match(/<span class="pill">([^<]+)<\/span>/) || [])[1] || 'Article';
+      var category = pill.charAt(0).toUpperCase() + pill.slice(1);
+      return block
+        .replace('<li class="card featured"', '<li class="card"')
+        .replace('<div class="card-meta">Featured · ', '<div class="card-meta">' + category + ' · ');
+    });
   }
 
   function card(d) {
@@ -582,6 +604,7 @@ A boxed aside.
     var pills = d.tags.map(function (t) { return '<span class="pill">' + esc(t) + '</span>'; }).join('');
 
     return '\n      <li class="card' + (d.featured ? ' featured' : '') + '"\n' +
+      '          data-date="' + esc(d.iso) + '"\n' +
       '          data-post="' + esc(d.search) + '"\n' +
       '          data-tags="' + esc(d.tags.join(',')) + '">\n' +
       '        ' + art + '\n' +
@@ -591,6 +614,66 @@ A boxed aside.
       '          <p>\n            ' + esc(d.excerpt) + '\n          </p>\n' +
       '          <div class="card-foot">' + pills + '</div>\n' +
       '        </div>\n      </li>\n';
+  }
+
+  /* ---------- after publishing ---------- */
+
+  /* The commit lands instantly but Pages needs a rebuild, so jumping to the
+     home page right away would show a stale copy without the new card.
+     Poll for the post until it is actually being served, then go. */
+  function waitForDeploy(url, onWait) {
+    var started = Date.now();
+    return new Promise(function (resolve) {
+      (function tick() {
+        if (Date.now() - started > 180000) return resolve(false);
+        fetch(url + '?t=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+          .then(function (r) {
+            if (r.ok) return resolve(true);
+            onWait(Math.round((Date.now() - started) / 1000));
+            setTimeout(tick, 4000);
+          })
+          .catch(function () {
+            onWait(Math.round((Date.now() - started) / 1000));
+            setTimeout(tick, 4000);
+          });
+      })();
+    });
+  }
+
+  function afterPublish(d) {
+    var log = $('log');
+    var live = 'https://primeroutine.co.in';
+    var localhost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+
+    /* Served from a local dev server: the commit went to GitHub, so the
+       index.html on disk here has not changed. Point at the real site. */
+    if (localhost || location.protocol === 'file:') {
+      say(log, 'You are running this locally, so the copy on disk is unchanged.');
+      say(log, 'The post is on GitHub and will be live in about a minute:');
+      say(log, live + '/posts/' + d.slug + '.html', 'ok');
+      var pull = document.createElement('div');
+      pull.textContent = 'Run `git pull` to bring the new files down locally.';
+      log.appendChild(pull);
+      $('publish').disabled = false;
+      return;
+    }
+
+    var line = document.createElement('div');
+    line.textContent = 'Waiting for GitHub Pages to rebuild…';
+    log.appendChild(line);
+
+    var skip = document.createElement('div');
+    skip.innerHTML = '<a href="index.html">Go to the home page now →</a>';
+    log.appendChild(skip);
+
+    return waitForDeploy('posts/' + d.slug + '.html', function (secs) {
+      line.textContent = 'Waiting for GitHub Pages to rebuild… ' + secs + 's';
+    }).then(function (ok) {
+      line.textContent = ok
+        ? 'Live. Opening the home page…'
+        : 'Still rebuilding after 3 minutes — opening the home page anyway.';
+      setTimeout(function () { location.href = 'index.html'; }, 900);
+    });
   }
 
   /* ---------- publish ---------- */
@@ -612,6 +695,7 @@ A boxed aside.
       tags: tags,
       minutes: readTime(body.value),
       date: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      iso: new Date().toISOString().slice(0, 7),   /* what the date sort reads */
       cover: (pending.length && $('use-cover').checked) ? pending[0].path : null
     };
 
@@ -625,6 +709,16 @@ A boxed aside.
     d.search = (d.title + ' ' + d.excerpt + ' ' + tags.join(' '))
       .toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     d.bodyHtml = toHtml(body.value, 1);
+
+    /* The cover picture also leads the article — unless it is already placed
+       somewhere in the body, in which case showing it twice would be odd. */
+    if (d.cover) {
+      var coverName = d.cover.replace(/^.*\//, '');
+      if (body.value.indexOf(coverName) === -1) {
+        d.hero = d.cover;
+        d.heroAlt = d.title;
+      }
+    }
 
     $('publish').disabled = true;
 
@@ -655,6 +749,7 @@ A boxed aside.
           say(log, 'A card for this post is already there — leaving index.html alone.');
           return null;
         }
+        html = demoteFeatured(html);
         html = html.replace(anchor, anchor + card(d));
         return gh('PUT', '/repos/' + REPO + '/contents/index.html', {
           message: 'Add "' + d.title + '" to the article grid',
@@ -666,9 +761,8 @@ A boxed aside.
 
     chain.then(function () {
       say(log, '');
-      say(log, '✓ Published. GitHub Pages usually takes about a minute.', 'ok');
-      say(log, 'https://primeroutine.co.in/posts/' + d.slug + '.html', 'ok');
-      $('publish').disabled = false;
+      say(log, '✓ Committed. The card is at the top of the article grid.', 'ok');
+      return afterPublish(d);
     }).catch(function (err) {
       say(log, '✗ ' + err.message, 'bad');
       say(log, 'Nothing further was written. Fix the problem and press Publish again.');

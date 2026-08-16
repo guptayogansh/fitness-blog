@@ -187,6 +187,11 @@ h3 { font-size: 1.2rem; }
 
 .tags { display: flex; gap: 7px; flex-wrap: wrap; }
 
+/* The date sort sits beside the topic filters; a rule keeps the two groups
+   from reading as one long row of buttons. */
+.sorts { padding-left: 12px; border-left: 1px solid var(--border); }
+@media (max-width: 620px) { .sorts { padding-left: 0; border-left: 0; } }
+
 .tag {
   border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dim);
   padding: 7px 13px; border-radius: 999px; font-size: .85rem; font-weight: 550;
@@ -305,6 +310,9 @@ h3 { font-size: 1.2rem; }
 .callout strong { display: block; margin-bottom: 4px; }
 
 .prose figure { margin: 2em 0; }
+/* Lead picture, sitting between the title block and the opening paragraph. */
+.prose .post-hero { margin: 0 0 2.2em; }
+.prose .post-hero img { aspect-ratio: 16 / 9; object-fit: cover; }
 .prose figure img { width: 100%; border-radius: var(--radius); border: 1px solid var(--border); }
 .prose figcaption {
   margin-top: 9px; font-size: .87rem; color: var(--text-dim); text-align: center;
