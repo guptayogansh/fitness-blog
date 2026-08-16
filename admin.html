@@ -93,6 +93,13 @@
   .danger[disabled] { opacity: .5; cursor: default; }
   :root[data-theme="dark"] .danger, :root:not([data-theme="light"]) .danger { color: #f87171; }
 
+  .update-bar {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    padding: 9px 16px; font-size: .88rem;
+    background: var(--accent-soft); color: var(--accent-text);
+    border-bottom: 1px solid var(--border);
+  }
+
   /* Shown while GitHub Pages rebuilds, so nobody looks at a stale page and
      concludes the thing they just did did not work. */
   .waiting {
@@ -130,6 +137,11 @@
 </style>
 </head>
 <body>
+
+<div class="update-bar" id="update-bar" hidden role="status">
+  <span>A newer version of the editor is available.</span>
+  <button class="tag" type="button" id="update-now">Reload</button>
+</div>
 
 <header class="site-header">
   <div class="wrap nav">
@@ -296,26 +308,43 @@ A boxed aside.
 (function () {
   'use strict';
 
-  /* Bump this whenever admin.html changes. Pages serves this file with
-     max-age=600, and the meta tag above does not really override that, so
-     without a check you can sit in a ten-minute-old editor. */
-  var ADMIN_VERSION = '2026-08-16-a';
+  /* Bump this whenever admin.html changes. GitHub Pages serves every file
+     with max-age=600 and supports no custom headers, so the ten minutes
+     cannot be shortened at the source — this check works around it. */
+  var ADMIN_VERSION = '2026-08-16-b';
 
-  /* Fetch the served copy past the cache; if it is newer than what is
-     running, the cache entry has now been replaced, so a reload picks it up.
-     The sessionStorage note stops this looping if a version ever sticks. */
-  (function checkForUpdate() {
-    fetch('admin.html', { cache: 'reload' })
+  /* Reads the served copy past the cache. Returns the version it finds. */
+  function servedVersion() {
+    return fetch('admin.html', { cache: 'reload' })
       .then(function (r) { return r.text(); })
       .then(function (text) {
         var found = text.match(/ADMIN_VERSION = '([^']+)'/);
-        if (!found || found[1] === ADMIN_VERSION) return;
-        if (sessionStorage.getItem('admin-seen') === found[1]) return;
-        sessionStorage.setItem('admin-seen', found[1]);
-        location.reload();
-      })
-      .catch(function () { /* offline, or opened from disk — carry on */ });
-  })();
+        return found ? found[1] : null;
+      });
+  }
+
+  /* On load nothing is written yet, so picking up a new version silently is
+     safe: the cache entry has just been replaced, so a reload gets it. */
+  servedVersion()
+    .then(function (version) {
+      if (!version || version === ADMIN_VERSION) return;
+      if (sessionStorage.getItem('admin-seen') === version) return;
+      sessionStorage.setItem('admin-seen', version);
+      location.reload();
+    })
+    .catch(function () { /* offline, or opened from disk — carry on */ });
+
+  /* Afterwards, check every ten seconds but never reload on its own — you
+     could be halfway through writing a post, and throwing that away to
+     install an update would be a poor trade. Offer it instead. */
+  var updateTimer = setInterval(function () {
+    if (document.hidden) return;
+    servedVersion().then(function (version) {
+      if (!version || version === ADMIN_VERSION) return;
+      clearInterval(updateTimer);
+      $('update-bar').hidden = false;
+    }).catch(function () {});
+  }, 10000);
 
   /* The decrypted GitHub token. Memory only — never localStorage, never a
      cookie, so closing the tab genuinely logs you out. */
@@ -418,6 +447,7 @@ A boxed aside.
   }
 
   $('lock-again').addEventListener('click', function () { location.reload(); });
+  $('update-now').addEventListener('click', function () { location.reload(); });
 
   /* Same cache problem as above: following this link normally can serve a
      copy of the home page from before whatever you just published or
