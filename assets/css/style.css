@@ -6,9 +6,9 @@
   --border: #e2e4df;
   --text: #16180f;
   --text-dim: #5d6154;
-  --accent: #4d7c0f;
-  --accent-soft: #ecfccb;
-  --accent-text: #3f6212;
+  --accent: #3a5fd9;
+  --accent-soft: #e4eaff;
+  --accent-text: #2545c4;
   --shadow: 0 1px 2px rgba(20, 24, 15, .06), 0 8px 24px rgba(20, 24, 15, .06);
   --radius: 14px;
   --wrap: 1080px;
@@ -24,9 +24,9 @@
     --border: #2b2f28;
     --text: #eef0ea;
     --text-dim: #a3a99b;
-    --accent: #a3e635;
-    --accent-soft: #223016;
-    --accent-text: #bef264;
+    --accent: #7c9dff;
+    --accent-soft: #1a2450;
+    --accent-text: #a8c1ff;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
   }
 }
@@ -38,9 +38,9 @@
   --border: #2b2f28;
   --text: #eef0ea;
   --text-dim: #a3a99b;
-  --accent: #a3e635;
-  --accent-soft: #223016;
-  --accent-text: #bef264;
+  --accent: #7c9dff;
+  --accent-soft: #1a2450;
+  --accent-text: #a8c1ff;
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
 }
 
@@ -81,7 +81,7 @@ h3 { font-size: 1.2rem; }
 
 .skip {
   position: absolute; left: -9999px; top: 0;
-  background: var(--accent); color: #fff; padding: 10px 16px; z-index: 100;
+  background: var(--accent); color: var(--bg); padding: 10px 16px; z-index: 100;
 }
 .skip:focus { left: 8px; top: 8px; }
 
