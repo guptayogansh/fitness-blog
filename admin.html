@@ -398,6 +398,21 @@ A boxed aside.
 
   $('lock-again').addEventListener('click', function () { location.reload(); });
 
+  /* Same cache problem as above: following this link normally can serve a
+     copy of the home page from before whatever you just published or
+     deleted. Warm the entry first, then go. */
+  var backLink = document.querySelector('.nav-links a[href="index.html"]');
+  if (backLink) {
+    backLink.addEventListener('click', function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return;   /* let new-tab clicks be */
+      e.preventDefault();
+      backLink.textContent = 'Loading…';
+      refreshIndexCache()
+        .catch(function () {})
+        .then(function () { location.href = 'index.html'; });
+    });
+  }
+
   /* ---------- GitHub API ---------- */
   function gh(method, path, body) {
     return fetch(API + path, {
@@ -909,10 +924,19 @@ A boxed aside.
       .then(function (r) { return r.ok; });
   }
 
+  /* Pages serves index.html with max-age=600, so a plain link back to the
+     site would hand you a ten-minute-old copy. `cache: 'reload'` goes to
+     the network AND replaces the cached entry, so the next navigation is
+     fresh. The URL must stay bare — a cache-busting query would refresh a
+     different entry and leave the real one stale. */
+  function refreshIndexCache() {
+    return fetch('index.html', { cache: 'reload' });
+  }
+
   /* Has the card actually gone from the served home page? That is what a
      reader sees, so it is the thing worth waiting on. */
   function cardIsGone(slug) {
-    return fetch('index.html?t=' + Date.now(), { cache: 'no-store' })
+    return refreshIndexCache()
       .then(function (r) { return r.text(); })
       .then(function (html) { return html.indexOf('posts/' + slug + '.html') === -1; });
   }
@@ -940,6 +964,12 @@ A boxed aside.
     }
 
     return waitForPages(function () { return postIsLive(d.slug); }, 'Publishing your post…')
+      .then(function () {
+        /* The wait watched the post URL, which says nothing about the cached
+           home page — refresh that too, or we land on a grid without the
+           card we just added. */
+        return refreshIndexCache().catch(function () {});
+      })
       .then(function () {
         location.href = 'index.html';
       });
